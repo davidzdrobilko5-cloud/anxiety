@@ -1,11 +1,699 @@
 <!DOCTYPE html>
-<html>
+<html lang="uk" class="dark">
 <head>
     <meta charset="UTF-8">
-    <title>Мой сайт</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Система Повітряних Тривог — Roblox Rockford</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        darkBg: '#0b0f19',
+                        cardBg: '#131c31',
+                    },
+                    animation: {
+                        pulseFast: 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&display=swap');
+        body { font-family: 'Montserrat', sans-serif; }
+        .map-container {
+            position: relative;
+            width: 100%;
+            max-width: 1100px;
+            margin: 0 auto;
+            user-select: none;
+        }
+        .district-shape {
+            transition: fill 0.3s ease, stroke 0.3s ease;
+            cursor: pointer;
+            pointer-events: auto;
+            fill: rgba(0, 0, 0, 0);
+            stroke: transparent;
+            stroke-width: 2px;
+        }
+        .district-shape:hover {
+            stroke: #38bdf8;
+            stroke-width: 4px;
+            fill: rgba(56, 189, 248, 0.15);
+        }
+        .alarm-active {
+            fill: rgba(239, 68, 68, 0.55) !important;
+            stroke: #ef4444 !important;
+            stroke-width: 4px !important;
+        }
+    </style>
 </head>
-<body>
-    <h1>Привет!</h1>
-    <p>Это мой первый сайт.</p>
+<body class="bg-darkBg text-slate-100 min-h-screen flex flex-col justify-between selection:bg-red-500 selection:text-white">
+
+    <header class="bg-cardBg/90 backdrop-blur border-b border-slate-800 sticky top-0 z-50 px-4 py-3 shadow-xl">
+        <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-red-600 flex items-center justify-center shadow-lg shadow-red-600/30 animate-pulse">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                </div>
+                <div>
+                    <h1 id="ui-title" class="text-lg md:text-xl font-black tracking-wider uppercase text-red-500">Система Тривог</h1>
+                    <p id="ui-subtitle" class="text-xs text-slate-400">Оперативна мапа Roblox Rockford</p>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <!-- Language Selector -->
+                <select id="langSelect" class="bg-slate-900 border border-slate-700 text-xs rounded-lg px-3 py-2 font-semibold focus:outline-none focus:border-red-500 transition">
+                    <option value="uk">🇺🇦 Українська</option>
+                    <option value="ru">🇷🇺 Русский</option>
+                    <option value="en">🇬🇧 English</option>
+                </select>
+
+                <!-- Sound Toggle -->
+                <button id="soundToggle" title="Увімкнути/вимкнути звук сирени" class="p-2.5 bg-slate-900 hover:bg-slate-800 rounded-lg border border-slate-700 text-slate-300 transition">
+                    <svg id="soundIcon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/></svg>
+                </button>
+
+                <!-- Admin Button -->
+                <button id="adminLoginBtn" class="flex items-center space-x-1.5 px-4 py-2 bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 text-white rounded-lg text-xs font-bold shadow-lg shadow-red-600/20 transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                    <span id="ui-admin-btn">Пульт Адміна</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow max-w-7xl mx-auto px-4 py-6 w-full flex flex-col lg:flex-row gap-6 items-start">
+        
+        <!-- Left: Interactive Map Container -->
+        <div class="w-full lg:w-2/3 flex flex-col items-center">
+            <div class="w-full bg-cardBg rounded-2xl p-4 border border-slate-800 shadow-2xl relative overflow-hidden">
+                
+                <div class="flex justify-between items-center mb-3">
+                    <span id="ui-map-title" class="text-xs uppercase font-bold text-slate-400 tracking-wider">Інтерактивна карта районів</span>
+                    <div id="globalStatusBadge" class="px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span id="ui-all-safe">Ситуація стабільна</span>
+                    </div>
+                </div>
+
+                <!-- Map Image + SVG Overlays -->
+                <div class="map-container rounded-xl overflow-hidden shadow-inner bg-slate-950 border border-slate-800">
+                    <img id="mapImage" src="https://i.ibb.co/2Y5R7z0/image.jpg" alt="Мапа районів Roblox Rockford" class="w-full h-auto block" onerror="this.src='https://placehold.co/1100x850/1e293b/94a3b8?text=Map+Image+Loading+Error'">
+                    
+                    <!-- SVG Overlay with precise district polygons matching user's map -->
+                    <svg class="absolute inset-0 w-full h-full" viewBox="0 0 1100 850" preserveAspectRatio="none">
+                        <!-- 1. Портовий район -->
+                        <polygon id="district-portovy" class="district-shape" points="25,25 365,25 365,370 25,370" data-id="portovy" />
+                        
+                        <!-- 2. Північний район -->
+                        <polygon id="district-severny" class="district-shape" points="375,25 725,25 725,310 375,310" data-id="severny" />
+
+                        <!-- 3. Промисловий район -->
+                        <polygon id="district-promyshlenny" class="district-shape" points="735,25 1075,25 1075,310 735,310" data-id="promyshlenny" />
+
+                        <!-- 4. Западный район -->
+                        <polygon id="district-zapadny" class="district-shape" points="25,380 365,380 365,650 25,650" data-id="zapadny" />
+
+                        <!-- 5. Центральний район -->
+                        <polygon id="district-tsentralny" class="district-shape" points="375,200 725,200 725,490 375,490" data-id="tsentralny" />
+
+                        <!-- 6. Восточный район -->
+                        <polygon id="district-vostochny" class="district-shape" points="620,315 1075,315 1075,540 620,540" data-id="vostochny" />
+
+                        <!-- 7. Аграрний район -->
+                        <polygon id="district-agrarny" class="district-shape" points="330,500 720,500 720,700 330,700" data-id="agrarny" />
+
+                        <!-- 8. Дальний район -->
+                        <polygon id="district-dalny" class="district-shape" points="730,315 1075,315 1075,700 730,700" data-id="dalny" />
+
+                        <!-- 9. Южный район -->
+                        <polygon id="district-yuzhny" class="district-shape" points="25,710 735,710 735,830 25,830" data-id="yuzhny" />
+
+                        <!-- 10. Луговой район -->
+                        <polygon id="district-lugovoy" class="district-shape" points="745,710 1075,710 1075,830 745,830" data-id="lugovoy" />
+                    </svg>
+
+                    <!-- Absolute Dynamic Alarm Badges Overlay on Map -->
+                    <div id="alarmOverlaysContainer" class="absolute inset-0 pointer-events-none">
+                        <!-- Dynamically populated alert banners -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Districts Status List & Admin Control Panel -->
+        <div class="w-full lg:w-1/3 flex flex-col space-y-6">
+            
+            <!-- Districts Status Card -->
+            <div class="bg-cardBg rounded-2xl p-4 border border-slate-800 shadow-xl">
+                <h2 id="ui-list-header" class="text-sm font-bold text-slate-300 uppercase tracking-wider mb-4 border-b border-slate-800 pb-2 flex justify-between items-center">
+                    <span>Статус районів</span>
+                    <span id="activeCountBadge" class="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-md">0 тривог</span>
+                </h2>
+                <div id="districtsList" class="space-y-2.5 max-h-[420px] overflow-y-auto pr-1">
+                    <!-- Populated via JavaScript -->
+                </div>
+            </div>
+
+            <!-- Admin Control Panel (Hidden unless logged in with 7078223344) -->
+            <div id="adminPanel" class="bg-cardBg rounded-2xl p-5 border-2 border-red-500/40 shadow-2xl hidden relative">
+                <div class="absolute -top-3 left-5 bg-red-600 text-white text-[10px] font-black uppercase px-3 py-0.5 rounded-full shadow tracking-widest" id="ui-admin-badge">
+                    Пульт Адміністратора
+                </div>
+                
+                <div class="flex justify-between items-center mb-4 mt-1">
+                    <h3 id="ui-admin-title" class="text-sm font-bold text-slate-100">Керування тривогами</h3>
+                    <button id="adminLogoutBtn" class="text-xs text-slate-400 hover:text-red-400 underline transition">Вийти</button>
+                </div>
+
+                <p id="ui-admin-desc" class="text-xs text-slate-400 mb-4">Натисніть на район нижче, щоб миттєво увімкнути або вимкнути повітряну тривогу на карті:</p>
+
+                <div id="adminControlsList" class="grid grid-cols-2 gap-2">
+                    <!-- Admin district buttons populated here -->
+                </div>
+
+                <div class="mt-4 pt-3 border-t border-slate-800 flex justify-between items-center">
+                    <button id="allClearBtn" class="w-full py-2 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 text-xs font-bold rounded-lg transition">
+                        Вимкнути всі тривоги
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <footer class="bg-cardBg border-t border-slate-800 py-4 text-center text-xs text-slate-500">
+        <p id="ui-footer">Система повітряних тривог • Синхронізація в реальному часі • Всі права захищені</p>
+    </footer>
+
+    <div id="loginModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-cardBg border border-slate-800 rounded-2xl p-6 w-full max-w-md shadow-2xl relative">
+            <h3 id="ui-modal-title" class="text-lg font-bold text-white mb-2">Вхід до пульту керування</h3>
+            <p id="ui-modal-desc" class="text-xs text-slate-400 mb-4">Введіть пароль адміністратора для отримання доступу до пульта тривог.</p>
+            
+            <form id="loginForm" class="space-y-4">
+                <div>
+                    <input type="password" id="adminPasswordInput" placeholder="Введіть пароль (7078223344)" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-red-500 transition">
+                    <p id="loginErrorMsg" class="text-xs text-red-500 mt-1 hidden">Невірний пароль!</p>
+                </div>
+                <div class="flex space-x-3">
+                    <button type="button" id="cancelLoginBtn" class="w-1/2 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition">Скасувати</button>
+                    <button type="submit" id="ui-login-btn" class="w-1/2 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-red-600/30 transition">Увійти</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global Firebase configuration
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'roblox-rockford-alarm-system';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+            apiKey: "demo-key",
+            authDomain: "demo.firebaseapp.com",
+            projectId: "demo-project",
+            storageBucket: "demo.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:123:web:abc"
+        };
+
+        let db, auth;
+        try {
+            const app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+            
+            const initAuth = async () => {
+                try {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                } catch (e) {
+                    console.error("Auth fallback error:", e);
+                }
+            };
+            initAuth();
+        } catch (e) {
+            console.error("Firebase init failed, running locally:", e);
+        }
+
+        // Districts Definition
+        const districtsData = {
+            portovy: {
+                id: 'portovy',
+                name: { uk: 'Портовий район', ru: 'Портовый район', en: 'Port District' },
+                desc: { uk: 'порт • ж/д • склади', ru: 'порт • ж/д • склады', en: 'port • railway • warehouses' },
+                coords: { x: 28, y: 22 }
+            },
+            severny: {
+                id: 'severny',
+                name: { uk: 'Північний район', ru: 'Северный район', en: 'North District' },
+                desc: { uk: 'жилі • траса • аеродром', ru: 'жилые • трасса • аэродром', en: 'residential • highway • airfield' },
+                coords: { x: 55, y: 20 }
+            },
+            promyshlenny: {
+                id: 'promyshlenny',
+                name: { uk: 'Промисловий район', ru: 'Промышленный район', en: 'Industrial District' },
+                desc: { uk: 'завод • склад • виробництво', ru: 'завод • склад • производство', en: 'factory • warehouse • production' },
+                coords: { x: 82, y: 20 }
+            },
+            zapadny: {
+                id: 'zapadny',
+                name: { uk: 'Західний район', ru: 'Западный район', en: 'West District' },
+                desc: { uk: 'жилі • склади • берег', ru: 'жилые • склады • берег', en: 'residential • warehouses • coast' },
+                coords: { x: 20, y: 58 }
+            },
+            tsentralny: {
+                id: 'tsentralny',
+                name: { uk: 'Центральний район', ru: 'Центральный район', en: 'Central District' },
+                desc: { uk: 'адміністрація • бізнес • послуги', ru: 'администрация • бизнес • услуги', en: 'admin • business • services' },
+                coords: { x: 50, y: 40 }
+            },
+            vostochny: {
+                id: 'vostochny',
+                name: { uk: 'Східний район', ru: 'Восточный район', en: 'East District' },
+                desc: { uk: 'жилі • депо • дороги', ru: 'жилые • депо • дороги', en: 'residential • depot • roads' },
+                coords: { x: 78, y: 47 }
+            },
+            agrarny: {
+                id: 'agrarny',
+                name: { uk: 'Аграрний район', ru: 'Аграрный район', en: 'Agrarian District' },
+                desc: { uk: 'поля • ферми • склади', ru: 'поля • фермы • склады', en: 'fields • farms • warehouses' },
+                coords: { x: 52, y: 70 }
+            },
+            dalny: {
+                id: 'dalny',
+                name: { uk: 'Дальній район', ru: 'Дальний район', en: 'Far District' },
+                desc: { uk: 'поля • охорона • склади', ru: 'поля • охрана • склады', en: 'fields • security • warehouses' },
+                coords: { x: 88, y: 62 }
+            },
+            yuzhny: {
+                id: 'yuzhny',
+                name: { uk: 'Південний район', ru: 'Южный район', en: 'South District' },
+                desc: { uk: 'жилі • склади • дорога', ru: 'жилые • склады • дорога', en: 'residential • warehouses • road' },
+                coords: { x: 38, y: 88 }
+            },
+            lugovoy: {
+                id: 'lugovoy',
+                name: { uk: 'Луговий район', ru: 'Луговой район', en: 'Meadow District' },
+                desc: { uk: 'луга • резерв • дороги', ru: 'луга • резерв • дороги', en: 'meadows • reserve • roads' },
+                coords: { x: 88, y: 88 }
+            }
+        };
+
+        // Multi-language UI translations
+        const translations = {
+            uk: {
+                title: 'Система Тривог',
+                subtitle: 'Оперативна мапа Roblox Rockford',
+                mapTitle: 'Інтерактивна карта районів',
+                allSafe: 'Ситуація стабільна',
+                allAlert: 'УВАГА! ПОВІТРЯНА ТРИВОГА',
+                adminBtn: 'Пульт Адміна',
+                listHeader: 'Статус районів',
+                alarmsCount: 'тривог',
+                adminBadge: 'Пульт Адміністратора',
+                adminTitle: 'Керування тривогами',
+                adminDesc: 'Натисніть на район нижче, щоб увімкнути або вимкнути тривогу:',
+                clearAll: 'Вимкнути всі тривоги',
+                modalTitle: 'Вхід до пульту керування',
+                modalDesc: 'Введіть пароль адміністратора  для доступу.',
+                cancel: 'Скасувати',
+                login: 'Увійти',
+                safeText: 'Спокійно',
+                alertText: 'ТРИВОГА!',
+                footer: 'Система повітряних тривог • Синхронізація в реальному часі • Всі права захищені'
+            },
+            ru: {
+                title: 'Система Тревог',
+                subtitle: 'Оперативная карта Roblox Rockford',
+                mapTitle: 'Интерактивная карта районов',
+                allSafe: 'Ситуация стабильна',
+                allAlert: 'ВНИМАНИЕ! ВОЗДУШНАЯ ТРЕВОГА',
+                adminBtn: 'Пульт Админа',
+                listHeader: 'Статус районов',
+                alarmsCount: 'тревог',
+                adminBadge: 'Пульт Администратора',
+                adminTitle: 'Управление тревогами',
+                adminDesc: 'Нажмите на район ниже, чтобы включить или выключить тревогу:',
+                clearAll: 'Выключить все тревоги',
+                modalTitle: 'Вход в пульт управления',
+                modalDesc: 'Введите пароль администратора  для доступа.',
+                cancel: 'Отмена',
+                login: 'Войти',
+                safeText: 'Спокойно',
+                alertText: 'ТРЕВОГА!',
+                footer: 'Система воздушных тревог • Синхронизация в реальном времени • Все права защищены'
+            },
+            en: {
+                title: 'Air Raid Alerts',
+                subtitle: 'Roblox Rockford Tactical Map',
+                mapTitle: 'Interactive District Map',
+                allSafe: 'Situation Stable',
+                allAlert: 'ATTENTION! AIR RAID ALERT',
+                adminBtn: 'Admin Panel',
+                listHeader: 'District Status',
+                alarmsCount: 'alerts',
+                adminBadge: 'Admin Dashboard',
+                adminTitle: 'Alert Management',
+                adminDesc: 'Click on a district below to toggle alarm state:',
+                clearAll: 'Clear All Alarms',
+                modalTitle: 'Admin Access Login',
+                modalDesc: 'Enter administrator password  to manage alerts.',
+                cancel: 'Cancel',
+                login: 'Login',
+                safeText: 'Normal',
+                alertText: 'ALERT!',
+                footer: 'Air Alert System • Real-time Sync • All rights reserved'
+            }
+        };
+
+        let currentLang = 'localStorage' in window ? (localStorage.getItem('roblox_alarm_lang') || 'uk') : 'uk';
+        let isAdmin = false;
+        let soundEnabled = false;
+        let alarmsState = {};
+        Object.keys(districtsData).forEach(id => { alarmsState[id] = false; });
+
+        // DOM Elements
+        const langSelect = document.getElementById('langSelect');
+        const adminLoginBtn = document.getElementById('adminLoginBtn');
+        const adminLogoutBtn = document.getElementById('adminLogoutBtn');
+        const loginModal = document.getElementById('loginModal');
+        const cancelLoginBtn = document.getElementById('cancelLoginBtn');
+        const loginForm = document.getElementById('loginForm');
+        const adminPasswordInput = document.getElementById('adminPasswordInput');
+        const loginErrorMsg = document.getElementById('loginErrorMsg');
+        const adminPanel = document.getElementById('adminPanel');
+        const districtsList = document.getElementById('districtsList');
+        const adminControlsList = document.getElementById('adminControlsList');
+        const alarmOverlaysContainer = document.getElementById('alarmOverlaysContainer');
+        const globalStatusBadge = document.getElementById('globalStatusBadge');
+        const activeCountBadge = document.getElementById('activeCountBadge');
+        const soundToggle = document.getElementById('soundToggle');
+        const soundIcon = document.getElementById('soundIcon');
+
+        langSelect.value = currentLang;
+
+        // Siren Audio Synthesizer
+        let audioCtx = null;
+        let sirenOscillator = null;
+        let sirenGain = null;
+        let isSirenPlaying = false;
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            if (soundEnabled) {
+                soundIcon.classList.add('text-red-500');
+                soundToggle.classList.add('border-red-500/50');
+                checkAndPlaySiren();
+            } else {
+                soundIcon.classList.remove('text-red-500');
+                soundToggle.classList.remove('border-red-500/50');
+                stopSiren();
+            }
+        }
+
+        function checkAndPlaySiren() {
+            if (!soundEnabled) return;
+            const hasActiveAlarm = Object.values(alarmsState).some(val => val === true);
+            if (hasActiveAlarm) {
+                playSirenSound();
+            } else {
+                stopSiren();
+            }
+        }
+
+        function playSirenSound() {
+            if (isSirenPlaying) return;
+            try {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                sirenOscillator = audioCtx.createOscillator();
+                sirenGain = audioCtx.createGain();
+                
+                sirenOscillator.type = 'sawtooth';
+                sirenOscillator.frequency.setValueAtTime(400, audioCtx.currentTime);
+                
+                const lfo = audioCtx.createOscillator();
+                const lfoGain = audioCtx.createGain();
+                lfo.frequency.setValueAtTime(0.3, audioCtx.currentTime);
+                lfoGain.gain.setValueAtTime(250, audioCtx.currentTime);
+                lfo.connect(sirenOscillator.frequency);
+                lfo.start();
+
+                sirenGain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                sirenOscillator.connect(sirenGain);
+                sirenGain.connect(audioCtx.destination);
+                
+                sirenOscillator.start();
+                isSirenPlaying = true;
+            } catch (e) {
+                console.log("Audio error:", e);
+            }
+        }
+
+        function stopSiren() {
+            if (!isSirenPlaying) return;
+            try {
+                if (sirenOscillator) {
+                    sirenOscillator.stop();
+                    sirenOscillator.disconnect();
+                }
+                if (audioCtx) {
+                    audioCtx.close();
+                }
+            } catch (e) {}
+            isSirenPlaying = false;
+        }
+
+        function updateTexts() {
+            const t = translations[currentLang];
+            document.getElementById('ui-title').innerText = t.title;
+            document.getElementById('ui-subtitle').innerText = t.subtitle;
+            document.getElementById('ui-map-title').innerText = t.mapTitle;
+            document.getElementById('ui-admin-btn').innerText = t.adminBtn;
+            document.getElementById('ui-list-header').querySelector('span').innerText = t.listHeader;
+            document.getElementById('ui-admin-badge').innerText = t.adminBadge;
+            document.getElementById('ui-admin-title').innerText = t.adminTitle;
+            document.getElementById('ui-admin-desc').innerText = t.adminDesc;
+            document.getElementById('allClearBtn').innerText = t.clearAll;
+            document.getElementById('ui-modal-title').innerText = t.modalTitle;
+            document.getElementById('ui-modal-desc').innerText = t.modalDesc;
+            cancelLoginBtn.innerText = t.cancel;
+            document.getElementById('ui-login-btn').innerText = t.login;
+            document.getElementById('ui-footer').innerText = t.footer;
+
+            renderUI();
+        }
+
+        langSelect.addEventListener('change', (e) => {
+            currentLang = e.target.value;
+            localStorage.setItem('roblox_alarm_lang', currentLang);
+            updateTexts();
+        });
+
+        // Admin Auth Flow (Password: 7078223344)
+        adminLoginBtn.addEventListener('click', () => {
+            if (isAdmin) {
+                isAdmin = false;
+                adminPanel.classList.add('hidden');
+                adminLoginBtn.classList.remove('bg-emerald-600', 'from-emerald-600', 'to-emerald-700');
+                adminLoginBtn.classList.add('bg-gradient-to-r', 'from-red-600', 'to-rose-700');
+                document.getElementById('ui-admin-btn').innerText = translations[currentLang].adminBtn;
+                renderUI();
+            } else {
+                loginModal.classList.remove('hidden');
+                adminPasswordInput.value = '';
+                loginErrorMsg.classList.add('hidden');
+                adminPasswordInput.focus();
+            }
+        });
+
+        cancelLoginBtn.addEventListener('click', () => {
+            loginModal.classList.add('hidden');
+        });
+
+        loginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const pass = adminPasswordInput.value.trim();
+            if (pass === '7078223344') {
+                isAdmin = true;
+                loginModal.classList.add('hidden');
+                adminPanel.classList.remove('hidden');
+                adminLoginBtn.classList.remove('from-red-600', 'to-rose-700');
+                adminLoginBtn.classList.add('bg-gradient-to-r', 'from-emerald-600', 'to-emerald-700');
+                document.getElementById('ui-admin-btn').innerText = 'Адмін: Ввімкнено';
+                renderUI();
+            } else {
+                loginErrorMsg.classList.remove('hidden');
+            }
+        });
+
+        adminLogoutBtn.addEventListener('click', () => {
+            isAdmin = false;
+            adminPanel.classList.add('hidden');
+            adminLoginBtn.classList.remove('bg-emerald-600', 'from-emerald-600', 'to-emerald-700');
+            adminLoginBtn.classList.add('bg-gradient-to-r', 'from-red-600', 'to-rose-700');
+            document.getElementById('ui-admin-btn').innerText = translations[currentLang].adminBtn;
+            renderUI();
+        });
+
+        async function setDistrictAlarm(districtId, state) {
+            alarmsState[districtId] = state;
+            if (db) {
+                try {
+                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'alarms_state'), alarmsState);
+                } catch (e) {
+                    console.error("Firestore sync error:", e);
+                }
+            }
+            renderUI();
+            checkAndPlaySiren();
+        }
+
+        document.getElementById('allClearBtn').addEventListener('click', async () => {
+            Object.keys(alarmsState).forEach(id => { alarmsState[id] = false; });
+            if (db) {
+                try {
+                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'alarms_state'), alarmsState);
+                } catch (e) {}
+            }
+            renderUI();
+            checkAndPlaySiren();
+        });
+
+        function renderUI() {
+            const t = translations[currentLang];
+            let activeCount = 0;
+
+            districtsList.innerHTML = '';
+            adminControlsList.innerHTML = '';
+            alarmOverlaysContainer.innerHTML = '';
+
+            Object.keys(districtsData).forEach(id => {
+                const district = districtsData[id];
+                const isActive = alarmsState[id];
+                if (isActive) activeCount++;
+
+                const polygonEl = document.getElementById(`district-${id}`);
+                if (polygonEl) {
+                    if (isActive) {
+                        polygonEl.classList.add('alarm-active');
+                    } else {
+                        polygonEl.classList.remove('alarm-active');
+                    }
+                }
+
+                if (isActive) {
+                    const banner = document.createElement('div');
+                    banner.className = 'absolute transform -translate-x-1/2 -translate-y-1/2 bg-red-600/90 backdrop-blur-md border-2 border-red-400 text-white px-3 py-1.5 rounded-xl shadow-2xl animate-pulseFast flex flex-col items-center pointer-events-none z-20';
+                    banner.style.left = `${district.coords.x}%`;
+                    banner.style.top = `${district.coords.y}%`;
+                    banner.innerHTML = `
+                        <div class="flex items-center space-x-1.5">
+                            <svg class="w-4 h-4 text-white animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                            <span class="text-xs font-black tracking-wider uppercase">${t.alertText}</span>
+                        </div>
+                        <span class="text-[10px] font-bold text-red-100 whitespace-nowrap">${district.name[currentLang]}</span>
+                    `;
+                    alarmOverlaysContainer.appendChild(banner);
+                }
+
+                const listItem = document.createElement('div');
+                listItem.className = `p-3 rounded-xl border flex items-center justify-between transition ${isActive ? 'bg-red-950/40 border-red-600/60 shadow-lg shadow-red-900/20' : 'bg-slate-900/50 border-slate-800'}`;
+                listItem.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        <div class="w-3 h-3 rounded-full ${isActive ? 'bg-red-500 animate-ping' : 'bg-emerald-500'}"></div>
+                        <div>
+                            <h4 class="text-xs font-bold text-white">${district.name[currentLang]}</h4>
+                            <p class="text-[10px] text-slate-400">${district.desc[currentLang]}</p>
+                        </div>
+                    </div>
+                    <span class="text-[11px] font-bold px-2.5 py-1 rounded-lg ${isActive ? 'bg-red-600 text-white animate-pulse' : 'bg-slate-800 text-slate-400'}">
+                        ${isActive ? t.alertText : t.safeText}
+                    </span>
+                `;
+                if (isAdmin) {
+                    listItem.classList.add('cursor-pointer', 'hover:border-red-400');
+                    listItem.title = 'Клікнути для зміни статусу';
+                    listItem.addEventListener('click', () => {
+                        setDistrictAlarm(id, !isActive);
+                    });
+                }
+                districtsList.appendChild(listItem);
+
+                const adminBtnItem = document.createElement('button');
+                adminBtnItem.className = `p-2.5 rounded-xl border text-left flex flex-col justify-between transition ${isActive ? 'bg-red-600 text-white border-red-400 shadow-md shadow-red-600/30 font-bold' : 'bg-slate-900 text-slate-300 border-slate-700 hover:border-slate-500'}`;
+                adminBtnItem.innerHTML = `
+                    <div class="text-xs font-bold truncate">${district.name[currentLang]}</div>
+                    <div class="text-[10px] opacity-80 mt-1">${isActive ? '🟢 УВІМКНЕНО' : '⚪ ВИМКНЕНО'}</div>
+                `;
+                adminBtnItem.addEventListener('click', () => {
+                    setDistrictAlarm(id, !isActive);
+                });
+                adminControlsList.appendChild(adminBtnItem);
+            });
+
+            if (activeCount > 0) {
+                globalStatusBadge.className = 'px-3 py-1 rounded-full text-xs font-extrabold bg-red-500/20 text-red-400 border border-red-500/40 flex items-center gap-1.5 animate-pulse';
+                globalStatusBadge.innerHTML = `
+                    <span class="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
+                    <span>${t.allAlert} (${activeCount})</span>
+                `;
+                activeCountBadge.className = 'text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded-md font-bold';
+                activeCountBadge.innerText = `${activeCount} ${t.alarmsCount}`;
+            } else {
+                globalStatusBadge.className = 'px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5';
+                globalStatusBadge.innerHTML = `
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span>${t.allSafe}</span>
+                `;
+                activeCountBadge.className = 'text-xs bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-md';
+                activeCountBadge.innerText = `0 ${t.alarmsCount}`;
+            }
+        }
+
+        document.querySelectorAll('.district-shape').forEach(poly => {
+            poly.addEventListener('click', (e) => {
+                if (!isAdmin) return;
+                const id = poly.getAttribute('data-id');
+                setDistrictAlarm(id, !alarmsState[id]);
+            });
+        });
+
+        soundToggle.addEventListener('click', toggleSound);
+
+        if (db) {
+            try {
+                onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'alarms_state'), (docSnap) => {
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
+                        Object.keys(districtsData).forEach(id => {
+                            if (typeof data[id] === 'boolean') {
+                                alarmsState[id] = data[id];
+                            }
+                        });
+                        renderUI();
+                        checkAndPlaySiren();
+                    }
+                }, (error) => {
+                    console.error("Firestore error:", error);
+                });
+            } catch (e) {
+                console.error("Listener error:", e);
+            }
+        }
+
+        updateTexts();
+    </script>
 </body>
 </html>
